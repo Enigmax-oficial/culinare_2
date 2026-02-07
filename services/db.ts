@@ -1,4 +1,6 @@
 import { Recipe } from "../types";
+// @ts-ignore
+import initSqlJs from 'sql.js';
 
 let dbInstance: any = null;
 let initPromise: Promise<any> | null = null;
@@ -31,25 +33,24 @@ export async function initDb() {
 
   initPromise = (async () => {
     try {
-      // Load sql.js from the import map definition
-      // @ts-ignore
-      const initSqlJs = (await import('sql.js')).default;
-      
       const SQL = await initSqlJs({
-        locateFile: (file: string) => `https://esm.sh/sql.js@1.10.3/dist/${file}`
+        // Locate the wasm file from a CDN to avoid needing to copy it to dist/ or handle fs issues
+        locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/${file}`
       });
 
       let buffer: ArrayBuffer | undefined;
 
       try {
         // Fetch the database file provided in the root
+        // We look for example.sqlite3.js which is likely a renamed .db file or similar in this context
+        // If running via Vite, it should be in public or served relative
         let dbUrl = './example.sqlite3.js';
         try {
             // Try to resolve relative to module if possible (Standard ESM/Vite)
             // This points to the parent directory (root) from services/
             dbUrl = new URL('../example.sqlite3.js', import.meta.url).href;
         } catch (e) {
-            // Fallback for environments where import.meta.url might be problematic or during basic script exec
+            // Fallback for environments where import.meta.url might be problematic
              try {
                 dbUrl = new URL('./example.sqlite3.js', window.location.href).href;
              } catch(e2) {
