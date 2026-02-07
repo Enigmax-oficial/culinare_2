@@ -117,7 +117,7 @@ export default function NewRecipePage() {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-latest',
+        model: 'gemini-3-flash-preview',
         contents: `Create a recipe based on this title: "${title}". Language: Portuguese (Brazil).`,
         config: {
           responseMimeType: 'application/json',
@@ -148,7 +148,7 @@ export default function NewRecipePage() {
 
     } catch (e) {
       console.error(e);
-      alert('Erro ao gerar receita com IA.');
+      alert('Erro ao gerar receita com IA. Verifique sua chave API ou tente novamente.');
     } finally {
       setAiLoading(false);
     }

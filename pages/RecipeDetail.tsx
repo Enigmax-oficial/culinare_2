@@ -23,7 +23,8 @@ export default function RecipeDetailPage() {
 
   // Rating State
   const [showRatingSuggestion, setShowRatingSuggestion] = useState(false);
-  const [hasRated, setHasRated] = useState(false);
+  const [myRating, setMyRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
 
   const loadRecipe = async () => {
     if (id) {
@@ -31,6 +32,10 @@ export default function RecipeDetailPage() {
       try {
         const data = await recipeService.getRecipeById(id);
         setRecipe(data || null);
+        
+        // Load user's personal rating
+        const personal = recipeService.getMyRating(id);
+        setMyRating(personal);
       } catch (error) {
         console.error("Error loading recipe", error);
       } finally {
@@ -78,7 +83,10 @@ export default function RecipeDetailPage() {
     if (!recipe) return;
     if (confirm(t('delete_recipe_confirm'))) {
       recipeService.delete(recipe.id);
-      navigate('/');
+      // Small delay to ensure storage write before nav
+      setTimeout(() => {
+          navigate('/');
+      }, 100);
     }
   };
 
@@ -87,11 +95,19 @@ export default function RecipeDetailPage() {
       setShowRatingSuggestion(true);
       return;
     }
-    if (recipe && !hasRated) {
+    if (recipe) {
       const updated = recipeService.rate(recipe.id, stars);
+      setMyRating(stars); // Instant UI update for user's rating
       if (updated) {
-        setRecipe(updated);
-        setHasRated(true);
+        setRecipe(updated); // Update average
+      } else {
+         // Fallback for SQL items where we simulate the update locally for this view
+         setRecipe(prev => prev ? ({
+             ...prev,
+             ratingCount: (prev.ratingCount || 0) + (myRating ? 0 : 1) 
+             // Note: accurate average recalc for SQL items without persistent storage is complex, 
+             // we accept visual approximation here for the demo.
+         }) : null);
       }
     }
   };
@@ -165,26 +181,38 @@ export default function RecipeDetailPage() {
           </div>
         </div>
 
-        {/* Rating Interaction Section */}
+        {/* Practical Rating Section */}
         <div className="bg-white p-6 rounded-3xl border border-stone-100 mb-8 text-center shadow-sm">
-           <h3 className="text-sm font-bold text-stone-900 mb-3">{hasRated ? t('rating_thanks') : t('rate_this_recipe')}</h3>
-           <div className="flex justify-center gap-2 mb-2">
+           <h3 className="text-sm font-bold text-stone-900 mb-3">
+              {myRating > 0 ? t('rating_thanks') : t('rate_this_recipe')}
+           </h3>
+           
+           <div 
+             className="flex justify-center gap-2 mb-2" 
+             onMouseLeave={() => setHoverRating(0)}
+           >
              {[1, 2, 3, 4, 5].map((star) => (
                <button 
                  key={star}
                  onClick={() => handleRate(star)}
-                 disabled={hasRated}
-                 className={`transition-all hover:scale-110 active:scale-95 ${hasRated ? 'cursor-default' : 'cursor-pointer'}`}
+                 onMouseEnter={() => setHoverRating(star)}
+                 className="transition-transform hover:scale-125 focus:outline-none"
                >
                  <Star 
-                   size={28} 
-                   className={`${(recipe.rating && Math.round(recipe.rating) >= star) ? 'text-yellow-400 fill-yellow-400' : 'text-stone-200'} hover:text-yellow-400 hover:fill-yellow-400 transition-colors`} 
+                   size={32} 
+                   className={`transition-colors duration-200 ${(hoverRating || myRating) >= star ? 'text-yellow-400 fill-yellow-400' : 'text-stone-200'}`} 
                    strokeWidth={3}
                  />
                </button>
              ))}
            </div>
            
+           {myRating > 0 && (
+               <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wide animate-in fade-in">
+                   Sua avaliação: {myRating} estrela{myRating > 1 ? 's' : ''}
+               </p>
+           )}
+
            {/* Login Suggestion */}
            {showRatingSuggestion && (
              <div className="mt-4 bg-orange-50 border border-orange-100 rounded-xl p-4 animate-in slide-in-from-top-2">
