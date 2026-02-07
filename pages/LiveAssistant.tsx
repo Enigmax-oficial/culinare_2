@@ -1,11 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { Mic, MicOff, ArrowLeft, Loader2, Volume2, ChefHat } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { createBlob, decode, decodeAudioData } from '../services/audioUtils';
-
-const API_KEY = import.meta.env.VITE_API_KEY || '';
 
 export default function LiveAssistant() {
   const navigate = useNavigate();
@@ -25,18 +23,14 @@ export default function LiveAssistant() {
   const animationFrameRef = useRef<number | null>(null);
 
   const startSession = async () => {
-    if (!API_KEY) {
+    if (!process.env.API_KEY) {
       alert("API Key missing");
       return;
     }
 
     try {
       setIsError(false);
-      alert("Live assistant feature requires additional setup with WebRTC. Please check the documentation.");
-      return;
-
-      // TODO: Implement with the correct Live API when available
-      /*
+      
       // 1. Setup Audio Contexts
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -44,16 +38,109 @@ export default function LiveAssistant() {
       outputAudioContextRef.current = outputCtx;
       
       const outputNode = outputCtx.createGain();
-      outputNode.connect(outputCtx.destination);
+      outputNode.connect(outputCtx.destination); // Ensure we connect to speakers
 
       // 2. Setup Mic Stream
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
       // 3. Setup GenAI Client
-      const ai = new GoogleGenerativeAI(API_KEY);
-      */
-    } catch (error) {
-      console.error("Session Error:", error);
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      
+      // 4. Connect
+      const sessionPromise = ai.live.connect({
+        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+        callbacks: {
+          onopen: () => {
+            console.log("Session Opened");
+            setConnected(true);
+
+            // Connect Mic to ScriptProcessor for raw PCM access
+            const source = inputCtx.createMediaStreamSource(stream);
+            
+            // Visualizer Setup
+            const analyser = inputCtx.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+            analyserRef.current = analyser;
+            drawVisualizer();
+
+            // Processor
+            const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
+            scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
+              const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+              const pcmBlob = createBlob(inputData);
+              
+              sessionPromise.then((session) => {
+                session.sendRealtimeInput({ media: pcmBlob });
+              });
+            };
+            
+            source.connect(scriptProcessor);
+            scriptProcessor.connect(inputCtx.destination);
+          },
+          onmessage: async (message: LiveServerMessage) => {
+            // Handle Audio Output
+            const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+            
+            if (base64Audio) {
+              const ctx = outputAudioContextRef.current;
+              if (!ctx) return;
+
+              // Handle timestamp for smooth playback
+              nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+              
+              const audioBuffer = await decodeAudioData(
+                decode(base64Audio),
+                ctx,
+                24000,
+                1
+              );
+
+              const source = ctx.createBufferSource();
+              source.buffer = audioBuffer;
+              source.connect(outputNode);
+              
+              source.addEventListener('ended', () => {
+                sourcesRef.current.delete(source);
+              });
+
+              source.start(nextStartTimeRef.current);
+              nextStartTimeRef.current += audioBuffer.duration;
+              sourcesRef.current.add(source);
+            }
+
+            // Handle Interruptions
+            if (message.serverContent?.interrupted) {
+              sourcesRef.current.forEach(src => {
+                src.stop();
+                sourcesRef.current.delete(src);
+              });
+              nextStartTimeRef.current = 0;
+            }
+          },
+          onclose: () => {
+            console.log("Session Closed");
+            setConnected(false);
+          },
+          onerror: (err) => {
+            console.error("Session Error", err);
+            setIsError(true);
+            setConnected(false);
+          }
+        },
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+          },
+          systemInstruction: `You are Chef Em Casa, a warm, professional, and encouraging culinary assistant. 
+          Help the user with cooking questions, timer setting, and ingredient substitutions. 
+          Keep answers concise as this is a voice conversation. Language: Portuguese (Brazil).`,
+        },
+      });
+
+    } catch (e) {
+      console.error(e);
       setIsError(true);
     }
   };
