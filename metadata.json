@@ -1,5 +1,7 @@
 {
   "name": "ChefEmCasa",
   "description": "A community recipe app featuring Google authentication, local data persistence, and AI-powered recipe generation.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

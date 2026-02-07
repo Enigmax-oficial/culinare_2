@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { ChefHat, Plus, Search, Home, UtensilsCrossed, ArrowLeft, Trash2, Clock, Sparkles, ShieldCheck, Globe, Settings, LogOut } from 'lucide-react';
+import { ChefHat, Plus, Search, Home, UtensilsCrossed, ArrowLeft, Trash2, Clock, Sparkles, ShieldCheck, Globe, Settings, LogOut, Mic } from 'lucide-react';
 import { authService } from './services/authService';
 import { User } from './types';
 import { AuthModal } from './components/AuthModal';
@@ -9,6 +9,7 @@ import NewRecipePage from './pages/NewRecipe';
 import RecipeDetailPage from './pages/RecipeDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import SettingsPage from './pages/Settings';
+import LiveAssistant from './pages/LiveAssistant';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 
 function Layout({ children }: { children?: React.ReactNode }) {
@@ -67,6 +68,12 @@ function Layout({ children }: { children?: React.ReactNode }) {
                     <button onClick={() => setLanguage('es')} className={`w-full text-left px-3 py-2 rounded-lg text-xs font-bold ${language === 'es' ? 'bg-orange-50 text-orange-600' : 'hover:bg-stone-50'}`}>ES - Español</button>
                  </div>
               </div>
+
+              {/* Live Assistant Link */}
+              <Link to="/live" className="flex items-center gap-1.5 px-3 py-2 rounded-full hover:bg-stone-100 text-stone-600 transition-all border border-transparent hover:border-stone-200">
+                <Mic size={16} />
+                <span className="hidden sm:inline">Sous Chef</span>
+              </Link>
 
               <Link to="/new" className="hidden sm:flex items-center gap-1.5 bg-orange-500 text-white px-4 py-2 rounded-full hover:bg-orange-600 transition-all shadow-md shadow-orange-100">
                 <Plus size={14} />
@@ -160,6 +167,7 @@ export default function App() {
             <Route path="/recipe/:id" element={<RecipeDetailPage />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/live" element={<LiveAssistant />} />
           </Routes>
         </Layout>
       </LanguageProvider>

@@ -76,7 +76,14 @@ const translations = {
     notify_cant_disable: 'Obrigatório',
     mark_trusted: 'Marcar autor como confiável',
     trusted_desc: 'Autores confiáveis têm receitas aprovadas automaticamente.',
-    no_notifications: 'Nenhuma notificação nova.'
+    no_notifications: 'Nenhuma notificação nova.',
+    assistant_title: 'Sous Chef IA',
+    assistant_ready: 'Pronto para cozinhar?',
+    assistant_listening: 'Ouvindo...',
+    assistant_active_desc: 'Pergunte sobre receitas, substituições ou peça ajuda com o tempo.',
+    assistant_inactive_desc: 'Toque no microfone para conversar com seu assistente culinário em tempo real.',
+    assistant_start: 'Falar com Chef',
+    assistant_stop: 'Encerrar'
   },
   en: {
     app_name: 'ChefAtHome',
@@ -145,7 +152,14 @@ const translations = {
     notify_cant_disable: 'Mandatory',
     mark_trusted: 'Mark author as trusted',
     trusted_desc: 'Trusted authors get recipes approved automatically.',
-    no_notifications: 'No new notifications.'
+    no_notifications: 'No new notifications.',
+    assistant_title: 'Sous Chef AI',
+    assistant_ready: 'Ready to cook?',
+    assistant_listening: 'Listening...',
+    assistant_active_desc: 'Ask about recipes, substitutions or cooking times.',
+    assistant_inactive_desc: 'Tap the mic to talk to your culinary assistant in real-time.',
+    assistant_start: 'Talk to Chef',
+    assistant_stop: 'End Session'
   },
   es: {
     app_name: 'ChefEnCasa',
@@ -214,7 +228,14 @@ const translations = {
     notify_cant_disable: 'Obligatorio',
     mark_trusted: 'Marcar autor como confiable',
     trusted_desc: 'Autores confiables tienen recetas aprobadas automáticamente.',
-    no_notifications: 'No hay notificaciones nuevas.'
+    no_notifications: 'No hay notificaciones nuevas.',
+    assistant_title: 'Sous Chef IA',
+    assistant_ready: '¿Listo para cocinar?',
+    assistant_listening: 'Escuchando...',
+    assistant_active_desc: 'Pregunta sobre recetas, sustituciones o tiempos de cocción.',
+    assistant_inactive_desc: 'Toca el micrófono para hablar con tu asistente culinario.',
+    assistant_start: 'Hablar con Chef',
+    assistant_stop: 'Terminar'
   }
 };
 
