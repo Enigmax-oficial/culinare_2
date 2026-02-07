@@ -5,9 +5,14 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      base: '/culinare_2/',
       server: {
         port: 3000,
         host: '0.0.0.0',
+      },
+      build: {
+        outDir: 'docs',
+        emptyOutDir: true,
       },
       plugins: [react()],
       define: {

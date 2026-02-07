@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://Enigmax-oficial.github.io/culinare_2",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -13,7 +14,6 @@
     "@google/genai": "^1.40.0",
     "lucide-react": "^0.563.0",
     "react": "^19.2.4",
-    "sql.js-httpvfs": "1.2.1",
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
