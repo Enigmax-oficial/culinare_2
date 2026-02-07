@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { ChefHat, Plus, Search, Home, UtensilsCrossed, ArrowLeft, Trash2, Clock, Sparkles, ShieldCheck, Globe, Settings, LogOut, Mic } from 'lucide-react';
+import { ChefHat, Plus, Search, Home, UtensilsCrossed, ArrowLeft, Trash2, Clock, Sparkles, ShieldCheck, Globe, Settings, LogOut, Mic, Download } from 'lucide-react';
 import { authService } from './services/authService';
 import { User } from './types';
 import { AuthModal } from './components/AuthModal';
@@ -15,12 +15,25 @@ import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 function Layout({ children }: { children?: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [showAuth, setShowAuth] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { t, language, setLanguage } = useLanguage();
 
   useEffect(() => {
     setUser(authService.getUser());
+
+    // PWA Install Prompt Listener
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -32,6 +45,15 @@ function Layout({ children }: { children?: React.ReactNode }) {
   const handleLoginSuccess = (u: User) => {
     setUser(u);
     setShowAuth(false);
+  };
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
   };
 
   const isHome = location.pathname === '/';
@@ -57,6 +79,17 @@ function Layout({ children }: { children?: React.ReactNode }) {
             )}
             
             <div className="flex items-center gap-3 ml-2">
+              {/* Install Button */}
+              {deferredPrompt && (
+                <button 
+                  onClick={handleInstallClick}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-stone-900 text-white hover:bg-stone-700 transition-all shadow-md"
+                >
+                  <Download size={14} />
+                  <span className="hidden sm:inline">{t('install_app')}</span>
+                </button>
+              )}
+
               {/* Language Selector */}
               <div className="relative group">
                  <button className="p-2 hover:bg-stone-100 rounded-full text-stone-600 transition-colors">

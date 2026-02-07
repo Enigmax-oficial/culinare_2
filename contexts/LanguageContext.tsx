@@ -84,7 +84,8 @@ const translations = {
     assistant_inactive_desc: 'Toque no microfone para conversar com seu assistente culinário em tempo real.',
     assistant_start: 'Falar com Chef',
     assistant_stop: 'Encerrar',
-    link_copied: 'Link copiado para a área de transferência!'
+    link_copied: 'Link copiado para a área de transferência!',
+    install_app: 'Instalar App'
   },
   en: {
     app_name: 'ChefAtHome',
@@ -161,7 +162,8 @@ const translations = {
     assistant_inactive_desc: 'Tap the mic to talk to your culinary assistant in real-time.',
     assistant_start: 'Talk to Chef',
     assistant_stop: 'End Session',
-    link_copied: 'Link copied to clipboard!'
+    link_copied: 'Link copied to clipboard!',
+    install_app: 'Install App'
   },
   es: {
     app_name: 'ChefEnCasa',
@@ -238,7 +240,8 @@ const translations = {
     assistant_inactive_desc: 'Toca el micrófono para hablar con tu asistente culinario.',
     assistant_start: 'Hablar con Chef',
     assistant_stop: 'Terminar',
-    link_copied: '¡Enlace copiado al portapapeles!'
+    link_copied: '¡Enlace copiado al portapapeles!',
+    install_app: 'Instalar App'
   }
 };
 

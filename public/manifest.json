@@ -1,0 +1,21 @@
+{
+  "name": "ChefEmCasa",
+  "short_name": "ChefEmCasa",
+  "description": "A community recipe app featuring Google authentication and AI-powered recipe generation.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#FAFAF9",
+  "theme_color": "#f97316",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3565/3565418.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3565/3565418.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
