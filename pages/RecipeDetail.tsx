@@ -81,12 +81,16 @@ export default function RecipeDetailPage() {
 
   const handleDelete = () => {
     if (!recipe) return;
-    if (confirm(t('delete_recipe_confirm'))) {
-      recipeService.delete(recipe.id);
-      // Small delay to ensure storage write before nav
-      setTimeout(() => {
-          navigate('/');
-      }, 100);
+    if (window.confirm(t('delete_recipe_confirm'))) {
+      setLoading(true);
+      try {
+        recipeService.delete(recipe.id);
+        // Use replace to prevent going back to deleted recipe
+        navigate('/', { replace: true });
+      } catch (e) {
+        console.error("Failed to delete", e);
+        setLoading(false);
+      }
     }
   };
 
@@ -138,7 +142,8 @@ export default function RecipeDetailPage() {
            {canDelete && (
              <button 
                onClick={handleDelete}
-               className="flex items-center gap-2 text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors text-xs font-bold"
+               className="flex items-center gap-2 text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors text-xs font-bold cursor-pointer z-10"
+               title={t('delete_recipe')}
              >
                <Trash2 size={16} />
                {t('delete_recipe')}

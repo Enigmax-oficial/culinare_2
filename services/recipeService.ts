@@ -112,12 +112,21 @@ const getLocalRecipes = (): Recipe[] => {
     localStorage.setItem(RECIPE_KEY, JSON.stringify(SEED_DATA));
     return SEED_DATA;
   }
-  return JSON.parse(stored);
+  try {
+      return JSON.parse(stored);
+  } catch(e) {
+      console.error("Error parsing local recipes", e);
+      return SEED_DATA;
+  }
 };
 
 const getDeletedIds = (): string[] => {
-  const stored = localStorage.getItem(DELETED_KEY);
-  return stored ? JSON.parse(stored) : [];
+  try {
+    const stored = localStorage.getItem(DELETED_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    return [];
+  }
 };
 
 const getTrustedUsers = (): string[] => {
@@ -203,14 +212,14 @@ export const recipeService = {
 
   delete: (id: string): void => {
     const stringId = String(id);
-    // 1. Remove from local storage if it exists there
+    
+    // 1. Remove from local storage array
     const recipes = getLocalRecipes();
-    if (recipes.some(r => String(r.id) === stringId)) {
-        const updated = recipes.filter(r => String(r.id) !== stringId);
-        localStorage.setItem(RECIPE_KEY, JSON.stringify(updated));
-    }
+    const updated = recipes.filter(r => String(r.id) !== stringId);
+    // Always update local storage to reflect the removal or ensure it's not there
+    localStorage.setItem(RECIPE_KEY, JSON.stringify(updated));
 
-    // 2. Add to deleted IDs list (Global Blocklist)
+    // 2. Add to deleted IDs list (Global Blocklist) for SQL items or just robustness
     const deletedIds = getDeletedIds();
     if (!deletedIds.includes(stringId)) {
         deletedIds.push(stringId);
