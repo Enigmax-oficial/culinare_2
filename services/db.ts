@@ -43,12 +43,26 @@ export async function initDb() {
 
       try {
         // Fetch the database file provided in the root
-        const response = await fetch('./example.sqlite3.js');
+        let dbUrl = './example.sqlite3.js';
+        try {
+            // Try to resolve relative to module if possible (Standard ESM/Vite)
+            // This points to the parent directory (root) from services/
+            dbUrl = new URL('../example.sqlite3.js', import.meta.url).href;
+        } catch (e) {
+            // Fallback for environments where import.meta.url might be problematic or during basic script exec
+             try {
+                dbUrl = new URL('./example.sqlite3.js', window.location.href).href;
+             } catch(e2) {
+                console.warn("Failed to construct absolute DB URL, using relative.");
+             }
+        }
+
+        const response = await fetch(dbUrl);
         if (response.ok) {
           buffer = await response.arrayBuffer();
         }
       } catch (e) {
-        console.warn("Could not fetch initial DB file, starting with empty in-memory DB.");
+        console.warn("Could not fetch initial DB file, starting with empty in-memory DB.", e);
       }
       
       // Create database from buffer if available, otherwise new empty DB

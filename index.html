@@ -77,11 +77,21 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').then(registration => {
-            console.log('SW registered');
-          }).catch(registrationError => {
-            console.log('SW registration failed: ', registrationError);
-          });
+          let swUrl = './sw.js';
+          try {
+            // Construct absolute URL based on current location to avoid <base> tag mismatch in previews
+            swUrl = new URL('./sw.js', window.location.href).href;
+          } catch (e) {
+            console.warn('SW URL construction failed, falling back to relative path');
+          }
+          
+          navigator.serviceWorker.register(swUrl)
+            .then(registration => {
+              console.log('SW registered with scope:', registration.scope);
+            })
+            .catch(registrationError => {
+              console.log('SW registration failed: ', registrationError);
+            });
         });
       }
     </script>
