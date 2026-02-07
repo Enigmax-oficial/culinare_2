@@ -1,4 +1,12 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, ReactNode } from 'react';
+
+type Language = 'pt' | 'en' | 'es';
+
+interface LanguageContextType {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string) => string;
+}
 
 const translations = {
   pt: {
@@ -205,17 +213,18 @@ const translations = {
     notify_dev_updates: 'Anuncios del Desarrollador',
     notify_cant_disable: 'Obligatorio',
     mark_trusted: 'Marcar autor como confiable',
-    trusted_desc: 'Autores confiáveis tienen recetas aprobadas automáticamente.',
+    trusted_desc: 'Autores confiables tienen recetas aprobadas automáticamente.',
     no_notifications: 'No hay notificaciones nuevas.'
   }
 };
 
-const LanguageContext = createContext(undefined);
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }) {
-  const [language, setLanguage] = useState('pt');
+export function LanguageProvider({ children }: { children?: ReactNode }) {
+  const [language, setLanguage] = useState<Language>('pt');
 
-  const t = (key) => {
+  const t = (key: string) => {
+    // @ts-ignore
     return translations[language][key] || key;
   };
 
