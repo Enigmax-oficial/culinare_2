@@ -4,9 +4,13 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: './', // Ensures assets work on GitHub Pages subdirectories
+  base: '/culinare_2/', // GitHub Pages base path (repository name)
   build: {
     outDir: 'dist',
-    sourcemap: false
+    sourcemap: false,
+    minify: 'esbuild',
+    rollupOptions: {
+      external: ['sql.js-httpvfs']
+    }
   }
 });

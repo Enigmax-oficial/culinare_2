@@ -1,6 +1,11 @@
-import { Blob } from '@google/genai';
+// Audio utilities for handling blob operations
 
-export function createBlob(data: Float32Array): Blob {
+interface AudioBlob {
+  data: string;
+  mimeType: string;
+}
+
+export function createBlob(data: Float32Array): AudioBlob {
   const l = data.length;
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {

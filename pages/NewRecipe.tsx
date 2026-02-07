@@ -1,27 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Upload, Sparkles, Loader2, ArrowLeft, Image as ImageIcon, Lock } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { recipeService } from '../services/recipeService';
 import { authService } from '../services/authService';
 import { Ingredient, Step, CATEGORIES } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 
+const API_KEY = import.meta.env.VITE_API_KEY || '';
+
 // Gemini Schema for auto-completion
 const RECIPE_SCHEMA = {
-  type: Type.OBJECT,
+  type: 'object' as const,
   properties: {
-    description: { type: Type.STRING },
-    prepTime: { type: Type.NUMBER },
-    cookTime: { type: Type.NUMBER },
-    difficulty: { type: Type.STRING },
+    description: { type: 'string' as const },
+    prepTime: { type: 'number' as const },
+    cookTime: { type: 'number' as const },
+    difficulty: { type: 'string' as const },
     ingredients: { 
-      type: Type.ARRAY, 
-      items: { type: Type.STRING } 
+      type: 'array' as const, 
+      items: { type: 'string' as const } 
     },
     steps: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING }
+      type: 'array' as const,
+      items: { type: 'string' as const }
     }
   }
 };
@@ -111,21 +113,15 @@ export default function NewRecipePage() {
   };
 
   const generateWithAI = async () => {
-    if (!title.trim() || !process.env.API_KEY) return;
+    if (!title.trim() || !API_KEY) return;
     setAiLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Create a recipe based on this title: "${title}". Language: Portuguese (Brazil).`,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: RECIPE_SCHEMA,
-        }
-      });
+      const ai = new GoogleGenerativeAI(API_KEY);
+      const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const response = await model.generateContent(`Create a recipe based on this title: "${title}". Language: Portuguese (Brazil).`);
       
-      const text = response.text;
+      const text = response.response.text();
       if (text) {
         const data = JSON.parse(text);
         setDescription(data.description || '');
@@ -204,7 +200,7 @@ export default function NewRecipePage() {
                   className="flex-1 bg-stone-50 border border-stone-100 rounded-xl px-4 py-3 text-sm font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-orange-200 transition-all"
                   required
                 />
-                {process.env.API_KEY && (
+                {API_KEY && (
                   <button 
                     type="button" 
                     onClick={generateWithAI}
