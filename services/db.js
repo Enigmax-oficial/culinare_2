@@ -16,7 +16,7 @@ export async function initDb() {
 
   initPromise = (async () => {
     try {
-      const { createDbWorker } = await import('sql.js-httpvfs');
+      const { createDbWorker } = await import('https://esm.sh/sql.js-httpvfs@1.2.1');
 
       const workerScript = `
         import { createSQLiteThread } from "https://esm.sh/sql.js-httpvfs@1.2.1/dist/sqlite.worker.js?bundle";
