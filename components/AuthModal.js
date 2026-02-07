@@ -1,26 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Lock, ChefHat, User as UserIcon, Mail, Loader2, ArrowRight, AlertCircle, Key } from 'lucide-react';
 import { authService } from '../services/authService';
-import { User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 
-interface AuthModalProps {
-  onClose: () => void;
-  onLoginSuccess: (user: User) => void;
-}
-
-export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess }) => {
+export const AuthModal = ({ onClose, onLoginSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleButtonRef = useRef(null);
   const { t } = useLanguage();
 
   useEffect(() => {
-    const handleGoogleResponse = async (response: any) => {
+    const handleGoogleResponse = async (response) => {
       setLoading(true);
       setError('');
       try {
@@ -43,12 +37,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
       }
     };
 
-    if ((window as any).google && googleButtonRef.current) {
-      (window as any).google.accounts.id.initialize({
+    if (window.google && googleButtonRef.current) {
+      window.google.accounts.id.initialize({
         client_id: '415793717407-mystical-app-486213-p4.apps.googleusercontent.com', 
         callback: handleGoogleResponse
       });
-      (window as any).google.accounts.id.renderButton(googleButtonRef.current, {
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
         type: 'standard',
         theme: 'outline',
         size: 'large',
@@ -59,7 +53,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
     }
   }, [onLoginSuccess]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -67,8 +61,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
     try {
       if (isRegister) {
         if (!name.trim()) throw new Error('Informe seu nome.');
-        // Password is currently not saved in local storage for security in this demo app, 
-        // except for checking dev credentials in login
         const user = await authService.createUser(name, email, 'email');
         onLoginSuccess(user);
       } else {
@@ -79,8 +71,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
           setError('Credenciais inválidas ou conta não encontrada.');
         }
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err.message || String(err));
     } finally {
       setLoading(false);
     }
@@ -102,11 +94,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
               <ChefHat size={36} />
             </div>
             <h2 className="text-3xl font-black text-stone-900 mb-2">Acesso Seguro</h2>
-            {/* Removed the 'saved locally' text as requested */}
           </div>
 
           <div className="space-y-6 flex flex-col items-center">
-            {/* Google Button Container */}
             <div ref={googleButtonRef} className="w-full flex justify-center min-h-[50px]" />
 
             <div className="relative flex items-center justify-center w-full my-2">

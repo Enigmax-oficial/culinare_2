@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ChefHat, Plus, Search, Home, UtensilsCrossed, ArrowLeft, Trash2, Clock, Sparkles, ShieldCheck, Globe, Settings, LogOut } from 'lucide-react';
-import { authService } from './services/authService';
-import { User } from './types';
-import { AuthModal } from './components/AuthModal';
-import HomePage from './pages/Home';
-import NewRecipePage from './pages/NewRecipe';
-import RecipeDetailPage from './pages/RecipeDetail';
-import AdminDashboard from './pages/AdminDashboard';
-import SettingsPage from './pages/Settings';
-import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import { authService } from './services/authService.js';
+import { AuthModal } from './components/AuthModal.js';
+import HomePage from './pages/Home.js';
+import NewRecipePage from './pages/NewRecipe.js';
+import RecipeDetailPage from './pages/RecipeDetail.js';
+import AdminDashboard from './pages/AdminDashboard.js';
+import SettingsPage from './pages/Settings.js';
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext.js';
 
-function Layout({ children }: { children?: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+function Layout({ children }) {
+  const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,7 +27,7 @@ function Layout({ children }: { children?: React.ReactNode }) {
     navigate('/');
   };
 
-  const handleLoginSuccess = (u: User) => {
+  const handleLoginSuccess = (u) => {
     setUser(u);
     setShowAuth(false);
   };
