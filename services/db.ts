@@ -3,15 +3,12 @@ import { Recipe } from "../types";
 let dbWorker: any = null;
 let initPromise: Promise<any> | null = null;
 
-// Using a relative path allows this to work regardless of the hosting subdirectory (GitHub Pages)
-const DB_URL = "./example.sqlite3.js"; 
-
 const DB_CONFIG = {
   from: "inline" as const,
   config: {
     serverMode: "full" as const,
     requestChunkSize: 4096, 
-    url: DB_URL
+    url: "./recipes.sqlite" 
   }
 };
 
@@ -43,7 +40,7 @@ export async function initDb() {
       dbWorker = worker;
       return worker;
     } catch (error) {
-      console.warn("ChefEmCasa: SQLite DB connection failed. App will work with local data.", error);
+      console.warn("ChefEmCasa: SQLite DB connection failed (recipes.sqlite missing or network error). App will work with local data.", error);
       return null;
     }
   })();
@@ -74,28 +71,28 @@ function mapResultsToObjects<T>(result: any): T[] {
 
 export const db = {
   getRecipes: async (): Promise<Recipe[]> => {
-    try {
-      const worker = await initDb();
-      if (!worker) return [];
+    const worker = await initDb();
+    if (!worker) return [];
 
-      // We wrap the query in a try-catch because if the file is not a valid DB, this will throw
+    try {
       const result = await worker.db.query(`SELECT * FROM recipes ORDER BY createdAt DESC`);
       return mapResultsToObjects<Recipe>(result);
     } catch (e) {
-      console.warn("ChefEmCasa: Failed to query recipes from SQLite. Using local only.", e);
+      console.error("SQL Query Error:", e);
       return [];
     }
   },
 
   getRecipeById: async (id: string): Promise<Recipe | null> => {
-    try {
-      const worker = await initDb();
-      if (!worker) return null;
+    const worker = await initDb();
+    if (!worker) return null;
 
+    try {
       const result = await worker.db.query(`SELECT * FROM recipes WHERE id = ?`, [id]);
       const mapped = mapResultsToObjects<Recipe>(result);
       return mapped.length > 0 ? mapped[0] : null;
     } catch (e) {
+      console.error("SQL Query Error:", e);
       return null;
     }
   }

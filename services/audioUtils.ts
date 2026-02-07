@@ -1,10 +1,6 @@
-// Local interface to match GenAI input requirements without direct import dependency
-export interface AudioBlob {
-  data: string;
-  mimeType: string;
-}
+import { Blob } from '@google/genai';
 
-export function createBlob(data: Float32Array): AudioBlob {
+export function createBlob(data: Float32Array): Blob {
   const l = data.length;
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenAI, LiveServerMessage } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { Mic, MicOff, ArrowLeft, Loader2, Volume2, ChefHat } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { createBlob, decode, decodeAudioData } from '../services/audioUtils';
@@ -32,33 +32,21 @@ export default function LiveAssistant() {
       setIsError(false);
       
       // 1. Setup Audio Contexts
-      // Force a simpler context setup
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      const inputCtx = new AudioContextClass({ sampleRate: 16000 });
-      const outputCtx = new AudioContextClass({ sampleRate: 24000 });
-      
+      const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       inputAudioContextRef.current = inputCtx;
       outputAudioContextRef.current = outputCtx;
       
       const outputNode = outputCtx.createGain();
-      outputNode.connect(outputCtx.destination); 
+      outputNode.connect(outputCtx.destination); // Ensure we connect to speakers
 
       // 2. Setup Mic Stream
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          sampleRate: 16000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        } 
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
       // 3. Setup GenAI Client
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       // 4. Connect
-      // Note: Using string 'AUDIO' for modality to prevent enum version mismatch issues with CDN
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         callbacks: {
@@ -66,6 +54,7 @@ export default function LiveAssistant() {
             console.log("Session Opened");
             setConnected(true);
 
+            // Connect Mic to ScriptProcessor for raw PCM access
             const source = inputCtx.createMediaStreamSource(stream);
             
             // Visualizer Setup
@@ -97,6 +86,7 @@ export default function LiveAssistant() {
               const ctx = outputAudioContextRef.current;
               if (!ctx) return;
 
+              // Handle timestamp for smooth playback
               nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
               
               const audioBuffer = await decodeAudioData(
@@ -119,6 +109,7 @@ export default function LiveAssistant() {
               sourcesRef.current.add(source);
             }
 
+            // Handle Interruptions
             if (message.serverContent?.interrupted) {
               sourcesRef.current.forEach(src => {
                 src.stop();
@@ -138,29 +129,37 @@ export default function LiveAssistant() {
           }
         },
         config: {
-          responseModalities: ['AUDIO' as any], // Cast to any to bypass type check if Enum is missing
+          responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
           },
-          systemInstruction: { parts: [{ text: "You are Chef Em Casa, a helpful culinary assistant. Keep answers concise. Language: Portuguese (Brazil)." }] },
+          systemInstruction: `You are Chef Em Casa, a warm, professional, and encouraging culinary assistant. 
+          Help the user with cooking questions, timer setting, and ingredient substitutions. 
+          Keep answers concise as this is a voice conversation. Language: Portuguese (Brazil).`,
         },
       });
 
     } catch (e) {
-      console.error("Connection Failed", e);
+      console.error(e);
       setIsError(true);
     }
   };
 
   const stopSession = () => {
+    // We can't cleanly "close" the socket from the outside with the current SDK structure easily 
+    // without storing the session object, but reloading the page or closing context works for cleanup.
+    // Ideally, we would call session.close() if we stored the resolved session.
+    // For this implementation, we close audio contexts which effectively stops the flow.
+    
     if (inputAudioContextRef.current) inputAudioContextRef.current.close();
     if (outputAudioContextRef.current) outputAudioContextRef.current.close();
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     
     setConnected(false);
-    window.location.reload(); 
+    window.location.reload(); // Simple reset for this demo
   };
 
+  // Visualizer Animation
   const drawVisualizer = () => {
     if (!analyserRef.current || !canvasRef.current) return;
     
@@ -182,6 +181,7 @@ export default function LiveAssistant() {
       const centerY = canvas.height / 2;
       const radius = 50;
 
+      // Calculate average volume
       let sum = 0;
       for(let i = 0; i < bufferLength; i++) {
         sum += dataArray[i];
@@ -191,9 +191,10 @@ export default function LiveAssistant() {
 
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius * scale, 0, 2 * Math.PI);
-      ctx.fillStyle = connected ? '#f97316' : '#d6d3d1';
+      ctx.fillStyle = connected ? '#f97316' : '#d6d3d1'; // Orange when connected, gray otherwise
       ctx.fill();
       
+      // Ripple effect
       if (connected) {
           ctx.beginPath();
           ctx.arc(centerX, centerY, radius * scale * 1.5, 0, 2 * Math.PI);
@@ -206,6 +207,7 @@ export default function LiveAssistant() {
     draw();
   };
 
+  // Resize canvas
   useEffect(() => {
     if (canvasRef.current) {
         canvasRef.current.width = window.innerWidth;
@@ -223,13 +225,15 @@ export default function LiveAssistant() {
              <span className="text-[10px] font-black uppercase tracking-widest text-orange-500">Beta</span>
              <h1 className="font-black text-stone-900">{t('assistant_title')}</h1>
         </div>
-        <div className="w-10"></div> 
+        <div className="w-10"></div> {/* Spacer */}
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
         
+        {/* Visualizer Layer */}
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full z-0" />
 
+        {/* Status Text */}
         <div className="z-10 text-center mb-8">
             <div className="w-24 h-24 bg-white rounded-full shadow-2xl flex items-center justify-center mx-auto mb-6 relative">
                  <ChefHat size={48} className={connected ? "text-orange-500" : "text-stone-300"} />
@@ -251,6 +255,7 @@ export default function LiveAssistant() {
             </p>
         </div>
 
+        {/* Controls */}
         <div className="z-10 mt-8">
             {!connected ? (
                 <button 
@@ -273,7 +278,7 @@ export default function LiveAssistant() {
 
         {isError && (
              <div className="absolute bottom-10 bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold animate-in slide-in-from-bottom-5">
-                 Erro de conexão. Verifique se o microfone está permitido ou recarregue.
+                 Erro de conexão. Verifique se o microfone está permitido.
              </div>
         )}
 
