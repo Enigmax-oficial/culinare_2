@@ -94,6 +94,29 @@ export default function RecipeDetailPage() {
     }
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: recipe?.title || 'ChefEmCasa',
+      text: recipe?.description,
+      url: window.location.href,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.log('Share aborted');
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        alert(t('link_copied'));
+      } catch (err) {
+        console.error('Failed to copy', err);
+      }
+    }
+  };
+
   const handleRate = (stars: number) => {
     if (!user) {
       setShowRatingSuggestion(true);
@@ -180,7 +203,10 @@ export default function RecipeDetailPage() {
           </div>
 
           <div className="absolute bottom-6 right-6 flex gap-2">
-            <button className="bg-white/20 backdrop-blur-md text-white p-3 rounded-full hover:bg-white hover:text-orange-500 transition-all">
+            <button 
+              onClick={handleShare}
+              className="bg-white/20 backdrop-blur-md text-white p-3 rounded-full hover:bg-white hover:text-orange-500 transition-all cursor-pointer"
+            >
               <Share2 size={20} />
             </button>
           </div>

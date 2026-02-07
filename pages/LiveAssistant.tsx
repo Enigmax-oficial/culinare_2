@@ -11,6 +11,9 @@ export default function LiveAssistant() {
   const [connected, setConnected] = useState(false);
   const [isError, setIsError] = useState(false);
   
+  // Connection Ref to avoid stale closures in animation loop
+  const connectedRef = useRef(false);
+  
   // Audio Context Refs
   const inputAudioContextRef = useRef<AudioContext | null>(null);
   const outputAudioContextRef = useRef<AudioContext | null>(null);
@@ -53,6 +56,7 @@ export default function LiveAssistant() {
           onopen: () => {
             console.log("Session Opened");
             setConnected(true);
+            connectedRef.current = true;
 
             // Connect Mic to ScriptProcessor for raw PCM access
             const source = inputCtx.createMediaStreamSource(stream);
@@ -121,11 +125,13 @@ export default function LiveAssistant() {
           onclose: () => {
             console.log("Session Closed");
             setConnected(false);
+            connectedRef.current = false;
           },
           onerror: (err) => {
             console.error("Session Error", err);
             setIsError(true);
             setConnected(false);
+            connectedRef.current = false;
           }
         },
         config: {
@@ -142,6 +148,8 @@ export default function LiveAssistant() {
     } catch (e) {
       console.error(e);
       setIsError(true);
+      setConnected(false);
+      connectedRef.current = false;
     }
   };
 
@@ -156,6 +164,7 @@ export default function LiveAssistant() {
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     
     setConnected(false);
+    connectedRef.current = false;
     window.location.reload(); // Simple reset for this demo
   };
 
@@ -191,11 +200,12 @@ export default function LiveAssistant() {
 
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius * scale, 0, 2 * Math.PI);
-      ctx.fillStyle = connected ? '#f97316' : '#d6d3d1'; // Orange when connected, gray otherwise
+      // Use ref here to prevent stale closure
+      ctx.fillStyle = connectedRef.current ? '#f97316' : '#d6d3d1'; // Orange when connected, gray otherwise
       ctx.fill();
       
       // Ripple effect
-      if (connected) {
+      if (connectedRef.current) {
           ctx.beginPath();
           ctx.arc(centerX, centerY, radius * scale * 1.5, 0, 2 * Math.PI);
           ctx.strokeStyle = `rgba(249, 115, 22, ${0.3 * (average/100)})`;

@@ -75,7 +75,7 @@ const translations = {
     notify_dev_updates: 'Comunicados do Desenvolvedor',
     notify_cant_disable: 'Obrigatório',
     mark_trusted: 'Marcar autor como confiável',
-    trusted_desc: 'Autores confiáveis têm receitas aprovadas automaticamente.',
+    trusted_desc: 'Autores confiáveis têm receitas aprovadas automáticamente.',
     no_notifications: 'Nenhuma notificação nova.',
     assistant_title: 'Sous Chef IA',
     assistant_ready: 'Pronto para cozinhar?',
@@ -83,7 +83,8 @@ const translations = {
     assistant_active_desc: 'Pergunte sobre receitas, substituições ou peça ajuda com o tempo.',
     assistant_inactive_desc: 'Toque no microfone para conversar com seu assistente culinário em tempo real.',
     assistant_start: 'Falar com Chef',
-    assistant_stop: 'Encerrar'
+    assistant_stop: 'Encerrar',
+    link_copied: 'Link copiado para a área de transferência!'
   },
   en: {
     app_name: 'ChefAtHome',
@@ -159,7 +160,8 @@ const translations = {
     assistant_active_desc: 'Ask about recipes, substitutions or cooking times.',
     assistant_inactive_desc: 'Tap the mic to talk to your culinary assistant in real-time.',
     assistant_start: 'Talk to Chef',
-    assistant_stop: 'End Session'
+    assistant_stop: 'End Session',
+    link_copied: 'Link copied to clipboard!'
   },
   es: {
     app_name: 'ChefEnCasa',
@@ -235,7 +237,8 @@ const translations = {
     assistant_active_desc: 'Pregunta sobre recetas, sustituciones o tiempos de cocción.',
     assistant_inactive_desc: 'Toca el micrófono para hablar con tu asistente culinario.',
     assistant_start: 'Hablar con Chef',
-    assistant_stop: 'Terminar'
+    assistant_stop: 'Terminar',
+    link_copied: '¡Enlace copiado al portapapeles!'
   }
 };
 

@@ -8,7 +8,7 @@ const DB_CONFIG = {
   config: {
     serverMode: "full" as const,
     requestChunkSize: 4096, 
-    url: "./recipes.sqlite" 
+    url: "./example.sqlite3.js" 
   }
 };
 

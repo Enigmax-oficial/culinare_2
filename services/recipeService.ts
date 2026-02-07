@@ -147,9 +147,10 @@ export const recipeService = {
     // 1. Fetch from Local Storage
     const localRecipes = getLocalRecipes();
 
-    // 2. Fetch from SQLite (Community/Static) - Assume these are always verified
+    // 2. Fetch from SQLite (Community/Static)
+    // The "verification method" here is implicit:
+    // Any recipe present in the shipped SQLite database is considered verified by the platform.
     const sqlRecipes = await db.getRecipes();
-    // Normalize SQL recipes to have status if missing
     const sqlNormalized = sqlRecipes.map(r => ({ ...r, status: 'verified' as const }));
 
     // 3. Filter Local: Verified OR Owned by User
@@ -159,7 +160,7 @@ export const recipeService = {
 
     const allRecipes = [...validLocal, ...sqlNormalized];
     
-    // 4. Filter Deleted Recipes (Blocklist) - CRITICAL: Ensure String comparison
+    // 4. Filter Deleted Recipes (Blocklist)
     const deletedIds = new Set(getDeletedIds().map(String));
     const activeRecipes = allRecipes.filter(r => !deletedIds.has(String(r.id)));
     
@@ -271,7 +272,6 @@ export const recipeService = {
     localStorage.setItem(RECIPE_KEY, JSON.stringify(updated));
   },
 
-  // Practical Rating System
   getMyRating: (recipeId: string): number => {
       const ratings = getUserRatings();
       return ratings[recipeId] || 0;
@@ -281,7 +281,6 @@ export const recipeService = {
     const recipes = getLocalRecipes();
     const index = recipes.findIndex(r => String(r.id) === String(recipeId));
     
-    // Update personal record
     const userRatings = getUserRatings();
     const previousRating = userRatings[recipeId];
     userRatings[recipeId] = newRating;
@@ -292,18 +291,12 @@ export const recipeService = {
       let currentCount = recipe.ratingCount || 0;
       let currentRating = recipe.rating || 0;
       
-      // Calculate new weighted average
-      // Formula: (OldTotal * OldCount - OldUserRating + NewUserRating) / Count
-      // If new vote: (OldTotal * OldCount + NewUserRating) / (Count + 1)
-      
       let newTotalScore = currentRating * currentCount;
       let newCount = currentCount;
 
       if (previousRating) {
-          // Updating existing vote
           newTotalScore = newTotalScore - previousRating + newRating;
       } else {
-          // New vote
           newTotalScore = newTotalScore + newRating;
           newCount = currentCount + 1;
       }
@@ -321,9 +314,6 @@ export const recipeService = {
       return updatedRecipe;
     }
     
-    // If it's a SQL recipe (not in local storage yet), we need to "fork" it to local storage to save the rating
-    // In a real app, this would hit an API. Here, we can't easily modify the SQL file,
-    // so we return a simulated updated object for the UI, but persistence for SQL items is limited in this demo.
     return undefined; 
   }
 };
