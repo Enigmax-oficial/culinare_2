@@ -1,3 +1,19 @@
+export interface NotificationPreferences {
+  recipeUpdates: boolean;
+  marketing: boolean;
+  // developerAnnouncements are always true (hidden from UI toggle)
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'system' | 'recipe_update' | 'dev_announcement';
+  read: boolean;
+  createdAt: number;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -5,6 +21,7 @@ export interface User {
   avatar?: string;
   type: 'google' | 'email';
   role: 'user' | 'dev';
+  preferences?: NotificationPreferences;
 }
 
 export interface Ingredient {
@@ -41,6 +58,7 @@ export interface Recipe {
   authorName: string;
   createdAt: number;
   rating?: number;
+  ratingCount?: number;
   status: 'pending' | 'verified' | 'rejected';
   comments?: Comment[];
 }

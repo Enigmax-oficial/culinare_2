@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Upload, Sparkles, Loader2, ArrowLeft, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Upload, Sparkles, Loader2, ArrowLeft, Image as ImageIcon, Lock } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { recipeService } from '../services/recipeService';
 import { authService } from '../services/authService';
@@ -45,6 +45,31 @@ export default function NewRecipePage() {
   
   const [ingredients, setIngredients] = useState<Ingredient[]>([{ id: '1', name: '' }]);
   const [steps, setSteps] = useState<Step[]>([{ id: '1', text: '' }]);
+
+  // Check auth
+  useEffect(() => {
+    if (!authService.getUser()) {
+        // Redirect logic handled in render, but good to have safeguard
+    }
+  }, []);
+
+  if (!user) {
+      return (
+          <div className="min-h-[60vh] flex flex-col items-center justify-center p-4 text-center animate-in fade-in">
+              <div className="bg-orange-100 p-6 rounded-full mb-6 text-orange-600">
+                  <Lock size={48} />
+              </div>
+              <h1 className="text-2xl font-black text-stone-900 mb-2">{t('login_required_title')}</h1>
+              <p className="text-stone-500 mb-8 max-w-sm">{t('login_required_desc')}</p>
+              <button 
+                onClick={() => navigate('/')} 
+                className="bg-orange-500 text-white font-bold py-3 px-8 rounded-full hover:bg-orange-600 transition-colors"
+              >
+                  {t('back')}
+              </button>
+          </div>
+      )
+  }
 
   const handleAddIngredient = () => {
     setIngredients([...ingredients, { id: crypto.randomUUID(), name: '' }]);
@@ -107,17 +132,14 @@ export default function NewRecipePage() {
         setPrepTime(data.prepTime || 15);
         setCookTime(data.cookTime || 30);
         
-        // Map ingredients string[] to Ingredient[]
         if (data.ingredients && Array.isArray(data.ingredients)) {
            setIngredients(data.ingredients.map((ing: string) => ({ id: crypto.randomUUID(), name: ing })));
         }
         
-        // Map steps string[] to Step[]
         if (data.steps && Array.isArray(data.steps)) {
            setSteps(data.steps.map((st: string) => ({ id: crypto.randomUUID(), text: st })));
         }
 
-        // Map difficulty roughly
         const diff = data.difficulty?.toLowerCase();
         if (diff?.includes('fácil') || diff?.includes('easy')) setDifficulty('Fácil');
         else if (diff?.includes('médio') || diff?.includes('medium')) setDifficulty('Médio');
@@ -140,7 +162,6 @@ export default function NewRecipePage() {
       id: crypto.randomUUID(),
       title,
       description,
-      // Use uploaded image or fallback to placeholder
       image: image || `https://picsum.photos/seed/${title}/800/600`, 
       category,
       prepTime,
@@ -148,8 +169,8 @@ export default function NewRecipePage() {
       difficulty: difficulty as any,
       ingredients: ingredients.filter(i => i.name.trim() !== ''),
       steps: steps.filter(s => s.text.trim() !== ''),
-      authorId: user?.id || 'anon',
-      authorName: user?.name || 'Anônimo',
+      authorId: user.id,
+      authorName: user.name,
       createdAt: Date.now(),
       status: 'pending' as const
     };
@@ -207,7 +228,6 @@ export default function NewRecipePage() {
              ></textarea>
            </div>
            
-           {/* Image Upload */}
            <input 
              type="file" 
              ref={fileInputRef} 
@@ -250,38 +270,51 @@ export default function NewRecipePage() {
            </div>
            <div>
               <label className="block text-[10px] font-bold text-stone-400 mb-1">{t('difficulty')}</label>
-              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs font-bold">
-                 <option>Fácil</option>
-                 <option>Médio</option>
-                 <option>Difícil</option>
+              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-sm font-bold">
+                <option value="Fácil">{t('easy')}</option>
+                <option value="Médio">{t('medium')}</option>
+                <option value="Difícil">{t('hard')}</option>
               </select>
            </div>
-            <div>
+           <div>
               <label className="block text-[10px] font-bold text-stone-400 mb-1">{t('category')}</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value as any)} className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-xs font-bold">
-                 {CATEGORIES.filter(c => c !== 'Todas').map(c => <option key={c}>{c}</option>)}
+              <select value={category} onChange={(e) => setCategory(e.target.value as any)} className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 text-sm font-bold">
+                {CATEGORIES.filter(c => c !== 'Todas').map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
            </div>
         </div>
 
         {/* Ingredients */}
         <div className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm">
-           <h2 className="text-sm font-bold text-stone-900 uppercase tracking-widest mb-4">{t('ingredients')} *</h2>
-           <div className="space-y-3">
+           <div className="flex justify-between items-center mb-4">
+             <h2 className="text-sm font-bold text-stone-900 uppercase tracking-widest">{t('ingredients')}</h2>
+           </div>
+           <div className="space-y-2">
              {ingredients.map((ing, idx) => (
                <div key={ing.id} className="flex gap-2">
-                 <input 
-                   value={ing.name}
-                   onChange={(e) => updateIngredient(ing.id, e.target.value)}
-                   placeholder={`Item ${idx + 1}`}
-                   className="flex-1 bg-stone-50 border border-stone-100 rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:bg-white focus:border-orange-200"
-                 />
-                 <button type="button" onClick={() => handleRemoveIngredient(ing.id)} className="text-stone-300 hover:text-red-500 px-2">
+                  <input 
+                    type="text" 
+                    value={ing.name}
+                    onChange={(e) => updateIngredient(ing.id, e.target.value)}
+                    placeholder={`Ingrediente ${idx + 1}`}
+                    className="flex-1 bg-stone-50 border border-stone-100 rounded-xl px-4 py-2 text-sm font-medium"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => handleRemoveIngredient(ing.id)}
+                    className="w-10 flex items-center justify-center text-stone-400 hover:text-red-500 transition-colors"
+                  >
                     <Trash2 size={16} />
-                 </button>
+                  </button>
                </div>
              ))}
-             <button type="button" onClick={handleAddIngredient} className="mt-2 text-xs font-black text-orange-500 flex items-center gap-1 hover:text-orange-600">
+             <button 
+               type="button" 
+               onClick={handleAddIngredient}
+               className="mt-2 text-xs font-bold text-orange-500 hover:text-orange-600 flex items-center gap-1"
+             >
                <Plus size={14} /> {t('add_ingredient')}
              </button>
            </div>
@@ -289,39 +322,56 @@ export default function NewRecipePage() {
 
         {/* Steps */}
         <div className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm">
-           <h2 className="text-sm font-bold text-stone-900 uppercase tracking-widest mb-4">{t('preparation')} *</h2>
+           <div className="flex justify-between items-center mb-4">
+             <h2 className="text-sm font-bold text-stone-900 uppercase tracking-widest">{t('preparation')}</h2>
+           </div>
            <div className="space-y-4">
              {steps.map((step, idx) => (
-               <div key={step.id} className="flex gap-3 items-start">
-                 <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex-shrink-0 flex items-center justify-center font-bold text-xs mt-1">
-                   {idx + 1}
-                 </div>
-                 <textarea 
-                   value={step.text}
-                   onChange={(e) => updateStep(step.id, e.target.value)}
-                   placeholder={`Passo ${idx + 1}`}
-                   className="flex-1 bg-stone-50 border border-stone-100 rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:bg-white focus:border-orange-200 resize-none h-20"
-                 />
-                 <button type="button" onClick={() => handleRemoveStep(step.id)} className="text-stone-300 hover:text-red-500 px-2 mt-2">
+               <div key={step.id} className="flex gap-2">
+                  <span className="w-6 pt-2 text-center text-xs font-bold text-stone-400">{idx + 1}</span>
+                  <textarea 
+                    value={step.text}
+                    onChange={(e) => updateStep(step.id, e.target.value)}
+                    placeholder={`Passo ${idx + 1}`}
+                    rows={2}
+                    className="flex-1 bg-stone-50 border border-stone-100 rounded-xl px-4 py-2 text-sm font-medium resize-none"
+                  ></textarea>
+                  <button 
+                    type="button" 
+                    onClick={() => handleRemoveStep(step.id)}
+                    className="w-10 flex items-center justify-center text-stone-400 hover:text-red-500 transition-colors"
+                  >
                     <Trash2 size={16} />
-                 </button>
+                  </button>
                </div>
              ))}
-             <button type="button" onClick={handleAddStep} className="mt-2 text-xs font-black text-orange-500 flex items-center gap-1 hover:text-orange-600">
+             <button 
+               type="button" 
+               onClick={handleAddStep}
+               className="mt-2 text-xs font-bold text-orange-500 hover:text-orange-600 flex items-center gap-1"
+             >
                <Plus size={14} /> {t('add_step')}
              </button>
            </div>
         </div>
 
-        {/* Actions */}
         <div className="flex gap-4 pt-4">
-           <button type="button" onClick={() => navigate('/')} className="flex-1 py-4 rounded-xl font-bold text-stone-500 bg-stone-100 hover:bg-stone-200 transition-colors">
-             {t('cancel')}
-           </button>
-           <button type="submit" className="flex-[2] py-4 rounded-xl font-black text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-xl shadow-orange-100">
-             {t('publish')}
-           </button>
+          <button 
+            type="button" 
+            onClick={() => navigate('/')}
+            className="flex-1 py-4 rounded-xl font-bold text-stone-500 hover:bg-stone-100 transition-colors"
+          >
+            {t('cancel')}
+          </button>
+          <button 
+            type="submit"
+            disabled={!title} 
+            className="flex-[2] bg-orange-500 text-white py-4 rounded-xl font-bold shadow-xl shadow-orange-100 hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {t('publish')}
+          </button>
         </div>
+
       </form>
     </div>
   );

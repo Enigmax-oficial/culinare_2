@@ -131,12 +131,12 @@ function Layout({ children }: { children?: React.ReactNode }) {
         </div>
       </footer>
       
-      {/* Mobile Floating Action Button - Improved */}
+      {/* Mobile Floating Action Button - Sharp Style */}
       <Link 
         to="/new" 
-        className="sm:hidden fixed bottom-20 right-6 w-14 h-14 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-xl shadow-orange-200 z-40 active:scale-90 hover:scale-110 transition-all duration-300"
+        className="sm:hidden fixed bottom-20 right-6 w-14 h-14 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-lg z-40 hover:scale-105 active:scale-95 transition-transform duration-200"
       >
-        <Plus size={28} strokeWidth={3} />
+        <Plus size={28} strokeWidth={2.5} />
       </Link>
 
       {showAuth && (

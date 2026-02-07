@@ -1,18 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Shield, Database, Download, Trash2, KeyRound, Save } from 'lucide-react';
+import { ArrowLeft, Shield, Database, Download, Trash2, KeyRound, Save, Bell, Check, ToggleLeft, ToggleRight } from 'lucide-react';
 import { authService } from '../services/authService';
+import { notificationService } from '../services/notificationService';
 import { useLanguage } from '../contexts/LanguageContext';
+import { Notification, NotificationPreferences } from '../types';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const user = authService.getUser();
+  const [user, setUser] = useState(authService.getUser());
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  
+  // Preferences State
+  const [prefs, setPrefs] = useState<NotificationPreferences>({
+    recipeUpdates: true,
+    marketing: true
+  });
 
-  if (!user) {
-    navigate('/');
-    return null;
-  }
+  useEffect(() => {
+    if (!user) {
+      navigate('/');
+      return;
+    }
+    setNotifications(notificationService.getNotificationsForUser(user.id));
+    if (user.preferences) {
+        setPrefs(user.preferences);
+    }
+  }, [user, navigate]);
 
   const handleExport = () => {
     const data = JSON.stringify(localStorage);
@@ -31,6 +46,20 @@ export default function SettingsPage() {
         navigate('/');
     }
   };
+
+  const togglePref = (key: keyof NotificationPreferences) => {
+      const newPrefs = { ...prefs, [key]: !prefs[key] };
+      setPrefs(newPrefs);
+      
+      // Save immediately
+      if (user) {
+          const updatedUser = { ...user, preferences: newPrefs };
+          authService.updateUser(updatedUser);
+          setUser(updatedUser);
+      }
+  };
+
+  if (!user) return null;
 
   return (
     <div className="px-4 py-8 animate-in fade-in duration-500">
@@ -60,6 +89,86 @@ export default function SettingsPage() {
                  </span>
              </div>
         </div>
+
+        {/* Notification Center */}
+        <section>
+            <div className="flex items-center gap-2 mb-4">
+                <Bell className="text-orange-500" size={20} />
+                <h3 className="text-lg font-bold text-stone-900">{t('notifications')}</h3>
+            </div>
+            
+            <div className="bg-white p-6 rounded-[32px] border border-stone-100 shadow-sm space-y-6">
+                
+                {/* List of Messages */}
+                <div>
+                    <h4 className="text-xs font-bold text-stone-400 mb-3 uppercase tracking-wider">Histórico</h4>
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                        {notifications.length === 0 ? (
+                            <p className="text-sm text-stone-400 italic">{t('no_notifications')}</p>
+                        ) : (
+                            notifications.map(note => (
+                                <div key={note.id} className={`p-3 rounded-2xl border ${note.read ? 'bg-stone-50 border-stone-100' : 'bg-orange-50 border-orange-100'}`}>
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className={`text-xs font-bold ${note.read ? 'text-stone-600' : 'text-orange-800'}`}>
+                                            {note.title}
+                                        </span>
+                                        <span className="text-[10px] text-stone-400">
+                                            {new Date(note.createdAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-stone-500">{note.message}</p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                <div className="h-px bg-stone-100 w-full" />
+
+                {/* Preferences */}
+                <div>
+                    <h4 className="text-xs font-bold text-stone-400 mb-4 uppercase tracking-wider">{t('notification_pref')}</h4>
+                    <div className="space-y-4">
+                        
+                        {/* Recipe Updates */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-bold text-stone-700">{t('notify_recipe_updates')}</p>
+                                <p className="text-[10px] text-stone-400">Quando suas receitas forem aprovadas.</p>
+                            </div>
+                            <button onClick={() => togglePref('recipeUpdates')} className={`transition-colors ${prefs.recipeUpdates ? 'text-orange-500' : 'text-stone-300'}`}>
+                                {prefs.recipeUpdates ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+                            </button>
+                        </div>
+
+                        {/* Marketing (Using 'marketing' field for demo) */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-bold text-stone-700">Dicas & Novidades</p>
+                                <p className="text-[10px] text-stone-400">Receba dicas de culinária semanais.</p>
+                            </div>
+                            <button onClick={() => togglePref('marketing')} className={`transition-colors ${prefs.marketing ? 'text-orange-500' : 'text-stone-300'}`}>
+                                {prefs.marketing ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+                            </button>
+                        </div>
+
+                        {/* Developer Announcements - LOCKED */}
+                        <div className="flex items-center justify-between opacity-75">
+                            <div>
+                                <p className="text-sm font-bold text-stone-700">{t('notify_dev_updates')}</p>
+                                <p className="text-[10px] text-stone-400 flex items-center gap-1">
+                                    <Shield size={10} /> {t('notify_cant_disable')}
+                                </p>
+                            </div>
+                            <button disabled className="text-stone-400 cursor-not-allowed" title={t('notify_cant_disable')}>
+                                <ToggleRight size={32} />
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
 
         {/* Security Section */}
         <section>

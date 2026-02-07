@@ -3,6 +3,8 @@ import { db } from './db';
 import { authService } from './authService';
 
 const RECIPE_KEY = 'chef_em_casa_recipes';
+const DELETED_KEY = 'chef_em_casa_deleted_ids';
+const TRUSTED_USERS_KEY = 'chef_em_casa_trusted_users';
 
 const SEED_DATA: Recipe[] = [
   {
@@ -34,6 +36,7 @@ const SEED_DATA: Recipe[] = [
     authorName: 'Chef Em Casa',
     createdAt: Date.now(),
     rating: 5,
+    ratingCount: 12,
     status: 'verified',
     comments: []
   },
@@ -65,6 +68,7 @@ const SEED_DATA: Recipe[] = [
     authorName: 'Luigi Chef',
     createdAt: Date.now() - 100000,
     rating: 4.8,
+    ratingCount: 8,
     status: 'verified',
     comments: []
   },
@@ -94,6 +98,7 @@ const SEED_DATA: Recipe[] = [
     authorName: 'Fit Life',
     createdAt: Date.now() - 200000,
     rating: 4.5,
+    ratingCount: 5,
     status: 'verified',
     comments: []
   }
@@ -107,6 +112,16 @@ const getLocalRecipes = (): Recipe[] => {
     return SEED_DATA;
   }
   return JSON.parse(stored);
+};
+
+const getDeletedIds = (): string[] => {
+  const stored = localStorage.getItem(DELETED_KEY);
+  return stored ? JSON.parse(stored) : [];
+};
+
+const getTrustedUsers = (): string[] => {
+    const stored = localStorage.getItem(TRUSTED_USERS_KEY);
+    return stored ? JSON.parse(stored) : [];
 };
 
 export const recipeService = {
@@ -129,9 +144,13 @@ export const recipeService = {
 
     const allRecipes = [...validLocal, ...sqlNormalized];
     
+    // 4. Filter Deleted Recipes (Blocklist)
+    const deletedIds = new Set(getDeletedIds());
+    const activeRecipes = allRecipes.filter(r => !deletedIds.has(r.id));
+    
     // Remove duplicates by ID
     const seen = new Set();
-    return allRecipes.filter(r => {
+    return activeRecipes.filter(r => {
       const duplicate = seen.has(r.id);
       seen.add(r.id);
       return !duplicate;
@@ -141,10 +160,15 @@ export const recipeService = {
   // Admin Only: Get pending
   getPendingRecipes: (): Recipe[] => {
     const local = getLocalRecipes();
-    return local.filter(r => r.status === 'pending');
+    const deletedIds = new Set(getDeletedIds());
+    return local.filter(r => r.status === 'pending' && !deletedIds.has(r.id));
   },
 
   getRecipeById: async (id: string): Promise<Recipe | undefined> => {
+    // Check if deleted first
+    const deletedIds = new Set(getDeletedIds());
+    if (deletedIds.has(id)) return undefined;
+
     const localRecipes = getLocalRecipes();
     const localMatch = localRecipes.find(r => r.id === id);
     if (localMatch) return localMatch;
@@ -157,16 +181,34 @@ export const recipeService = {
 
   create: (recipe: Recipe): void => {
     const recipes = getLocalRecipes();
-    // Default to pending
-    const newRecipe = { ...recipe, status: 'pending' as const };
+    const trustedUsers = getTrustedUsers();
+    
+    // Auto-verify if author is Trusted OR is a Dev
+    const isTrusted = trustedUsers.includes(recipe.authorId) || recipe.authorId.startsWith('dev-');
+    
+    const newRecipe = { 
+        ...recipe, 
+        status: isTrusted ? 'verified' as const : 'pending' as const 
+    };
+    
     const updated = [newRecipe, ...recipes];
     localStorage.setItem(RECIPE_KEY, JSON.stringify(updated));
   },
 
   delete: (id: string): void => {
+    // 1. Remove from local storage if it exists there
     const recipes = getLocalRecipes();
-    const updated = recipes.filter(r => r.id !== id);
-    localStorage.setItem(RECIPE_KEY, JSON.stringify(updated));
+    if (recipes.some(r => r.id === id)) {
+        const updated = recipes.filter(r => r.id !== id);
+        localStorage.setItem(RECIPE_KEY, JSON.stringify(updated));
+    }
+
+    // 2. Add to deleted IDs list (Global Blocklist)
+    const deletedIds = getDeletedIds();
+    if (!deletedIds.includes(id)) {
+        deletedIds.push(id);
+        localStorage.setItem(DELETED_KEY, JSON.stringify(deletedIds));
+    }
   },
 
   updateStatus: (id: string, status: 'verified' | 'rejected'): void => {
@@ -178,6 +220,18 @@ export const recipeService = {
     } else {
         localStorage.setItem(RECIPE_KEY, JSON.stringify(updated));
     }
+  },
+
+  trustAuthor: (authorId: string): void => {
+      const trusted = getTrustedUsers();
+      if (!trusted.includes(authorId)) {
+          trusted.push(authorId);
+          localStorage.setItem(TRUSTED_USERS_KEY, JSON.stringify(trusted));
+      }
+  },
+
+  isAuthorTrusted: (authorId: string): boolean => {
+      return getTrustedUsers().includes(authorId);
   },
 
   addComment: (recipeId: string, comment: Comment): void => {
@@ -192,5 +246,31 @@ export const recipeService = {
       return r;
     });
     localStorage.setItem(RECIPE_KEY, JSON.stringify(updated));
+  },
+
+  rate: (recipeId: string, rating: number): Recipe | undefined => {
+    const recipes = getLocalRecipes();
+    const index = recipes.findIndex(r => r.id === recipeId);
+    
+    if (index !== -1) {
+      const recipe = recipes[index];
+      const currentCount = recipe.ratingCount || 0;
+      const currentRating = recipe.rating || 0;
+      
+      // Calculate new weighted average
+      const newCount = currentCount + 1;
+      const newRating = ((currentRating * currentCount) + rating) / newCount;
+
+      const updatedRecipe = {
+        ...recipe,
+        rating: Number(newRating.toFixed(1)),
+        ratingCount: newCount
+      };
+
+      recipes[index] = updatedRecipe;
+      localStorage.setItem(RECIPE_KEY, JSON.stringify(recipes));
+      return updatedRecipe;
+    }
+    return undefined;
   }
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, ChefHat, Flame, MessageSquare, Share2, Star, Loader2, CheckCircle, Circle, Send } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Clock, ChefHat, Flame, MessageSquare, Share2, Star, Loader2, CheckCircle, Circle, Send, Trash2, UserPlus } from 'lucide-react';
 import { recipeService } from '../services/recipeService';
 import { authService } from '../services/authService';
 import { Recipe, Comment } from '../types';
@@ -8,6 +8,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 export default function RecipeDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const { t } = useLanguage();
@@ -19,6 +20,10 @@ export default function RecipeDetailPage() {
 
   // Comment State
   const [commentText, setCommentText] = useState('');
+
+  // Rating State
+  const [showRatingSuggestion, setShowRatingSuggestion] = useState(false);
+  const [hasRated, setHasRated] = useState(false);
 
   const loadRecipe = async () => {
     if (id) {
@@ -69,6 +74,28 @@ export default function RecipeDetailPage() {
     loadRecipe(); // Reload to see new comment
   };
 
+  const handleDelete = () => {
+    if (!recipe) return;
+    if (confirm(t('delete_recipe_confirm'))) {
+      recipeService.delete(recipe.id);
+      navigate('/');
+    }
+  };
+
+  const handleRate = (stars: number) => {
+    if (!user) {
+      setShowRatingSuggestion(true);
+      return;
+    }
+    if (recipe && !hasRated) {
+      const updated = recipeService.rate(recipe.id, stars);
+      if (updated) {
+        setRecipe(updated);
+        setHasRated(true);
+      }
+    }
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center min-h-[50vh]">
       <Loader2 className="animate-spin text-orange-500" size={32} />
@@ -82,13 +109,27 @@ export default function RecipeDetailPage() {
     </div>
   );
 
+  const canDelete = user && (user.role === 'dev' || user.id === recipe.authorId);
+
   return (
     <div className="animate-in fade-in duration-500">
       {/* Header / Breadcrumbish */}
       <div className="px-4 py-6">
-        <span className="inline-block bg-orange-100 text-orange-700 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full mb-3">
-          {recipe.category}
-        </span>
+        <div className="flex justify-between items-start mb-4">
+           <span className="inline-block bg-orange-100 text-orange-700 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+             {recipe.category}
+           </span>
+           {canDelete && (
+             <button 
+               onClick={handleDelete}
+               className="flex items-center gap-2 text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-lg transition-colors text-xs font-bold"
+             >
+               <Trash2 size={16} />
+               {t('delete_recipe')}
+             </button>
+           )}
+        </div>
+        
         <h1 className="text-4xl md:text-5xl font-black text-stone-900 mb-2 leading-tight">
           {recipe.title}
         </h1>
@@ -107,11 +148,55 @@ export default function RecipeDetailPage() {
         <div className="relative rounded-[40px] overflow-hidden aspect-video shadow-2xl shadow-stone-200 mb-10">
           <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+          
+          {/* Rating Overlay */}
+          <div className="absolute top-6 right-6 flex flex-col items-end gap-2">
+            <div className="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
+              <Star size={16} className="text-yellow-400 fill-yellow-400" />
+              <span className="font-bold text-stone-900 text-sm">{recipe.rating || 0}</span>
+              <span className="text-[10px] text-stone-400 font-bold">({recipe.ratingCount || 0})</span>
+            </div>
+          </div>
+
           <div className="absolute bottom-6 right-6 flex gap-2">
             <button className="bg-white/20 backdrop-blur-md text-white p-3 rounded-full hover:bg-white hover:text-orange-500 transition-all">
               <Share2 size={20} />
             </button>
           </div>
+        </div>
+
+        {/* Rating Interaction Section */}
+        <div className="bg-white p-6 rounded-3xl border border-stone-100 mb-8 text-center shadow-sm">
+           <h3 className="text-sm font-bold text-stone-900 mb-3">{hasRated ? t('rating_thanks') : t('rate_this_recipe')}</h3>
+           <div className="flex justify-center gap-2 mb-2">
+             {[1, 2, 3, 4, 5].map((star) => (
+               <button 
+                 key={star}
+                 onClick={() => handleRate(star)}
+                 disabled={hasRated}
+                 className={`transition-all hover:scale-110 active:scale-95 ${hasRated ? 'cursor-default' : 'cursor-pointer'}`}
+               >
+                 <Star 
+                   size={28} 
+                   className={`${(recipe.rating && Math.round(recipe.rating) >= star) ? 'text-yellow-400 fill-yellow-400' : 'text-stone-200'} hover:text-yellow-400 hover:fill-yellow-400 transition-colors`} 
+                   strokeWidth={3}
+                 />
+               </button>
+             ))}
+           </div>
+           
+           {/* Login Suggestion */}
+           {showRatingSuggestion && (
+             <div className="mt-4 bg-orange-50 border border-orange-100 rounded-xl p-4 animate-in slide-in-from-top-2">
+                <div className="flex flex-col items-center gap-2">
+                   <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 mb-1">
+                      <UserPlus size={20} />
+                   </div>
+                   <p className="text-xs font-bold text-orange-800">{t('login_to_rate')}</p>
+                   <p className="text-[10px] text-orange-600/80 max-w-xs">{t('create_account_suggestion')}</p>
+                </div>
+             </div>
+           )}
         </div>
 
         {/* Meta Grid */}
