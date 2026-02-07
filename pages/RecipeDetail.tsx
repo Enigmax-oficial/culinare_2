@@ -1,24 +1,84 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, ChefHat, Flame, MessageSquare, Share2, Star } from 'lucide-react';
+import { ArrowLeft, Clock, ChefHat, Flame, MessageSquare, Share2, Star, Loader2, CheckCircle, Circle, Send } from 'lucide-react';
 import { recipeService } from '../services/recipeService';
-import { Recipe } from '../types';
+import { authService } from '../services/authService';
+import { Recipe, Comment } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function RecipeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
+  const user = authService.getUser();
+
+  // Checklist State
+  const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
+  const [checkedSteps, setCheckedSteps] = useState<Set<string>>(new Set());
+
+  // Comment State
+  const [commentText, setCommentText] = useState('');
+
+  const loadRecipe = async () => {
+    if (id) {
+      setLoading(true);
+      try {
+        const data = await recipeService.getRecipeById(id);
+        setRecipe(data || null);
+      } catch (error) {
+        console.error("Error loading recipe", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
-    if (id) {
-      const data = recipeService.getById(id);
-      setRecipe(data || null);
-    }
+    loadRecipe();
   }, [id]);
+
+  const toggleIngredient = (id: string) => {
+    const next = new Set(checkedIngredients);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setCheckedIngredients(next);
+  };
+
+  const toggleStep = (id: string) => {
+    const next = new Set(checkedSteps);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setCheckedSteps(next);
+  };
+
+  const handlePostComment = () => {
+    if (!user || !recipe || !commentText.trim()) return;
+
+    const newComment: Comment = {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      userName: user.name,
+      userAvatar: user.avatar,
+      text: commentText,
+      createdAt: Date.now()
+    };
+
+    recipeService.addComment(recipe.id, newComment);
+    setCommentText('');
+    loadRecipe(); // Reload to see new comment
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <Loader2 className="animate-spin text-orange-500" size={32} />
+    </div>
+  );
 
   if (!recipe) return (
     <div className="flex flex-col items-center justify-center min-h-[50vh]">
-      <h2 className="text-2xl font-bold text-stone-900">Receita não encontrada</h2>
-      <Link to="/" className="mt-4 text-orange-500 font-bold hover:underline">Voltar para home</Link>
+      <h2 className="text-2xl font-bold text-stone-900">{t('no_results')}</h2>
+      <Link to="/" className="mt-4 text-orange-500 font-bold hover:underline">{t('back')}</Link>
     </div>
   );
 
@@ -37,7 +97,7 @@ export default function RecipeDetailPage() {
         </p>
         
         <div className="flex items-center gap-2 mb-8">
-           <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center font-bold text-stone-600 text-xs">
+           <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center font-bold text-stone-600 text-xs overflow-hidden">
              {recipe.authorName.charAt(0)}
            </div>
            <span className="text-xs font-bold text-stone-600">{recipe.authorName}</span>
@@ -58,17 +118,17 @@ export default function RecipeDetailPage() {
         <div className="grid grid-cols-3 gap-4 mb-12">
             <div className="bg-white p-4 rounded-2xl border border-stone-100 text-center">
                <Clock className="mx-auto text-orange-500 mb-2" size={20} />
-               <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Tempo</p>
+               <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{t('time')}</p>
                <p className="text-stone-900 font-bold">{recipe.prepTime + recipe.cookTime} min</p>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-stone-100 text-center">
                <ChefHat className="mx-auto text-orange-500 mb-2" size={20} />
-               <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Preparo</p>
+               <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{t('preparation')}</p>
                <p className="text-stone-900 font-bold">{recipe.steps.length} Passos</p>
             </div>
             <div className="bg-white p-4 rounded-2xl border border-stone-100 text-center">
                <Flame className="mx-auto text-orange-500 mb-2" size={20} />
-               <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Dificuldade</p>
+               <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{t('difficulty')}</p>
                <p className="text-stone-900 font-bold">{recipe.difficulty}</p>
             </div>
         </div>
@@ -76,30 +136,50 @@ export default function RecipeDetailPage() {
         {/* Content Split */}
         <div className="grid md:grid-cols-2 gap-12">
            <div>
-              <h3 className="text-xl font-black text-stone-900 mb-6">Ingredientes</h3>
+              <div className="flex justify-between items-center mb-6">
+                 <h3 className="text-xl font-black text-stone-900">{t('ingredients')}</h3>
+                 <span className="text-[10px] text-stone-400 font-bold uppercase">{t('checklist_hint')}</span>
+              </div>
               <ul className="space-y-4">
-                {recipe.ingredients.map(ing => (
-                  <li key={ing.id} className="flex items-center gap-3 text-stone-600 text-sm font-medium">
-                    <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                    {ing.name}
-                  </li>
-                ))}
+                {recipe.ingredients.map(ing => {
+                  const isChecked = checkedIngredients.has(ing.id);
+                  return (
+                    <li 
+                      key={ing.id} 
+                      onClick={() => toggleIngredient(ing.id)}
+                      className={`flex items-center gap-3 text-sm font-medium cursor-pointer select-none transition-all p-2 rounded-xl hover:bg-stone-50 ${isChecked ? 'text-stone-300 line-through' : 'text-stone-600'}`}
+                    >
+                      {isChecked ? <CheckCircle size={18} className="text-green-500 flex-shrink-0" /> : <Circle size={18} className="text-stone-300 flex-shrink-0" />}
+                      {ing.name}
+                    </li>
+                  );
+                })}
               </ul>
            </div>
 
            <div>
-              <h3 className="text-xl font-black text-stone-900 mb-6">Modo de Preparo</h3>
+              <div className="flex justify-between items-center mb-6">
+                 <h3 className="text-xl font-black text-stone-900">{t('preparation')}</h3>
+                 <span className="text-[10px] text-stone-400 font-bold uppercase">{t('checklist_hint')}</span>
+              </div>
               <div className="space-y-6">
-                {recipe.steps.map((step, index) => (
-                  <div key={step.id} className="flex gap-4">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-sm">
-                      {index + 1}
+                {recipe.steps.map((step, index) => {
+                  const isChecked = checkedSteps.has(step.id);
+                  return (
+                    <div 
+                      key={step.id} 
+                      onClick={() => toggleStep(step.id)}
+                      className={`flex gap-4 cursor-pointer select-none group p-3 rounded-2xl transition-all ${isChecked ? 'bg-stone-50' : 'hover:bg-stone-50'}`}
+                    >
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${isChecked ? 'bg-green-100 text-green-600' : 'bg-orange-500 text-white'}`}>
+                        {isChecked ? <CheckCircle size={16} /> : index + 1}
+                      </div>
+                      <p className={`text-sm font-medium leading-relaxed pt-1 transition-colors ${isChecked ? 'text-stone-300 line-through' : 'text-stone-600'}`}>
+                        {step.text}
+                      </p>
                     </div>
-                    <p className="text-stone-600 text-sm font-medium leading-relaxed pt-1">
-                      {step.text}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
            </div>
         </div>
@@ -108,36 +188,74 @@ export default function RecipeDetailPage() {
         <div className="mt-16 pt-10 border-t border-stone-100">
            <div className="flex items-center gap-2 mb-6">
              <MessageSquare size={20} className="text-stone-900" />
-             <h3 className="text-lg font-bold text-stone-900">Comentários (0)</h3>
+             <h3 className="text-lg font-bold text-stone-900">{t('comments')} ({recipe.comments?.length || 0})</h3>
            </div>
            
-           <div className="bg-white p-6 rounded-3xl border border-stone-100">
-              <div className="flex gap-3 mb-4">
-                 <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
-                   R
-                 </div>
-                 <div>
-                    <p className="font-bold text-stone-900 text-sm">Ruan</p>
-                    <div className="flex gap-0.5 text-stone-200 text-xs mt-1">
-                      <span className="text-stone-400 text-[10px] mr-2 font-normal">Sua avaliação:</span>
-                      {[1,2,3,4,5].map(s => <Star key={s} size={12} />)}
-                    </div>
-                 </div>
-              </div>
-              <textarea 
-                className="w-full bg-stone-50 rounded-xl p-4 text-sm font-medium border-0 focus:ring-2 focus:ring-orange-100 focus:bg-white transition-all resize-none"
-                rows={3}
-                placeholder="Deixe seu comentário..."
-              ></textarea>
-              <div className="mt-3 flex justify-end">
-                <button className="bg-orange-200 text-orange-800 px-6 py-2 rounded-lg text-xs font-bold hover:bg-orange-300 transition-colors">
-                  Comentar
-                </button>
-              </div>
-           </div>
+           {/* Add Comment Form */}
+           {user ? (
+             <div className="bg-white p-6 rounded-3xl border border-stone-100 mb-8 shadow-sm">
+                <div className="flex gap-3 mb-4">
+                   {user.avatar ? (
+                      <img src={user.avatar} className="w-10 h-10 rounded-full" alt={user.name} />
+                   ) : (
+                      <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold">
+                        {user.name.charAt(0)}
+                      </div>
+                   )}
+                   <div>
+                      <p className="font-bold text-stone-900 text-sm">{user.name}</p>
+                      <p className="text-xs text-stone-400">Compartilhe sua experiência</p>
+                   </div>
+                </div>
+                <textarea 
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  className="w-full bg-stone-50 rounded-xl p-4 text-sm font-medium border-0 focus:ring-2 focus:ring-orange-100 focus:bg-white transition-all resize-none mb-3"
+                  rows={3}
+                  placeholder={t('leave_comment')}
+                ></textarea>
+                <div className="flex justify-end">
+                  <button 
+                    onClick={handlePostComment}
+                    disabled={!commentText.trim()}
+                    className="bg-orange-500 text-white px-6 py-2 rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {t('send')} <Send size={14} />
+                  </button>
+                </div>
+             </div>
+           ) : (
+             <div className="bg-stone-50 rounded-2xl p-6 text-center mb-8">
+               <p className="text-stone-500 text-sm font-medium">Faça login para comentar.</p>
+             </div>
+           )}
            
-           <div className="text-center py-12">
-             <p className="text-xs text-stone-400">Nenhum comentário ainda. Seja o primeiro!</p>
+           {/* Comments List */}
+           <div className="space-y-6">
+              {recipe.comments && recipe.comments.length > 0 ? (
+                recipe.comments.map(comment => (
+                  <div key={comment.id} className="flex gap-4 animate-in slide-in-from-bottom-2">
+                     {comment.userAvatar ? (
+                        <img src={comment.userAvatar} className="w-10 h-10 rounded-full flex-shrink-0 bg-stone-100" alt={comment.userName} />
+                     ) : (
+                        <div className="w-10 h-10 rounded-full bg-stone-200 text-stone-600 flex items-center justify-center font-bold flex-shrink-0">
+                          {comment.userName.charAt(0)}
+                        </div>
+                     )}
+                     <div className="flex-1 bg-white p-4 rounded-2xl rounded-tl-none border border-stone-100">
+                        <div className="flex justify-between items-center mb-2">
+                           <span className="font-bold text-stone-900 text-sm">{comment.userName}</span>
+                           <span className="text-[10px] text-stone-400 font-bold">{new Date(comment.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-stone-600 text-sm leading-relaxed">{comment.text}</p>
+                     </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-xs text-stone-400">Nenhum comentário ainda. Seja o primeiro!</p>
+                </div>
+              )}
            </div>
         </div>
       </div>

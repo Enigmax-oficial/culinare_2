@@ -4,6 +4,7 @@ export interface User {
   email: string;
   avatar?: string;
   type: 'google' | 'email';
+  role: 'user' | 'dev';
 }
 
 export interface Ingredient {
@@ -14,6 +15,15 @@ export interface Ingredient {
 export interface Step {
   id: string;
   text: string;
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  text: string;
+  createdAt: number;
 }
 
 export interface Recipe {
@@ -31,8 +41,15 @@ export interface Recipe {
   authorName: string;
   createdAt: number;
   rating?: number;
+  status: 'pending' | 'verified' | 'rejected';
+  comments?: Comment[];
 }
 
 export type Category = 'Todas' | 'Café da Manhã' | 'Almoço' | 'Jantar' | 'Sobremesa' | 'Lanche' | 'Bebida';
 
 export const CATEGORIES: Category[] = ['Todas', 'Café da Manhã', 'Almoço', 'Jantar', 'Sobremesa', 'Lanche', 'Bebida'];
+
+export interface SearchFilters {
+  difficulty: string;
+  maxTime: number;
+}
