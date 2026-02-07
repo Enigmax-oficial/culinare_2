@@ -1,46 +1,78 @@
 import { Recipe } from "../types";
 
-let dbWorker: any = null;
+let dbInstance: any = null;
 let initPromise: Promise<any> | null = null;
 
-const DB_CONFIG = {
-  from: "inline" as const,
-  config: {
-    serverMode: "full" as const,
-    requestChunkSize: 4096, 
-    url: "./example.sqlite3.js" 
-  }
-};
+const CREATE_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS recipes (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  image TEXT,
+  category TEXT,
+  prepTime INTEGER,
+  cookTime INTEGER,
+  difficulty TEXT,
+  ingredients TEXT, -- JSON
+  steps TEXT, -- JSON
+  authorId TEXT,
+  authorName TEXT,
+  createdAt INTEGER,
+  rating REAL,
+  ratingCount INTEGER,
+  status TEXT,
+  comments TEXT -- JSON
+);
+`;
 
 export async function initDb() {
-  if (dbWorker) return dbWorker;
+  if (dbInstance) return dbInstance;
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
     try {
-      // Dynamically import to ensure the app loads even if this fails
+      // Load sql.js from the import map definition
       // @ts-ignore
-      const { createDbWorker } = await import("sql.js-httpvfs");
+      const initSqlJs = (await import('sql.js')).default;
+      
+      const SQL = await initSqlJs({
+        locateFile: (file: string) => `https://esm.sh/sql.js@1.10.3/dist/${file}`
+      });
 
-      // Worker script using ESM import from CDN
-      const workerScript = `
-        import { createSQLiteThread } from "https://esm.sh/sql.js-httpvfs@1.2.1/dist/sqlite.worker.js?bundle";
-        createSQLiteThread();
-      `;
-      const blob = new Blob([workerScript], { type: 'application/javascript' });
-      const workerUrl = URL.createObjectURL(blob);
-      const wasmUrl = "https://esm.sh/sql.js-httpvfs@1.2.1/dist/sql-wasm.wasm";
+      let buffer: ArrayBuffer | undefined;
 
-      const worker = await createDbWorker(
-        [DB_CONFIG],
-        workerUrl,
-        wasmUrl
-      );
+      try {
+        // Fetch the database file provided in the root
+        const response = await fetch('./example.sqlite3.js');
+        if (response.ok) {
+          buffer = await response.arrayBuffer();
+        }
+      } catch (e) {
+        console.warn("Could not fetch initial DB file, starting with empty in-memory DB.");
+      }
+      
+      // Create database from buffer if available, otherwise new empty DB
+      dbInstance = buffer ? new SQL.Database(new Uint8Array(buffer)) : new SQL.Database();
+      
+      // Ensure schema exists (fixes 'no such table' error)
+      dbInstance.run(CREATE_TABLE_SQL);
 
-      dbWorker = worker;
-      return worker;
+      // Check if table is empty, if so, seed it
+      try {
+        const res = dbInstance.exec("SELECT count(*) FROM recipes");
+        if (res[0].values[0][0] === 0) {
+          console.log("Seeding in-memory SQL database...");
+          seedDatabase(dbInstance);
+        }
+      } catch (e) {
+        console.warn("Error checking/seeding DB:", e);
+      }
+      
+      console.log("ChefEmCasa: Database loaded successfully via sql.js");
+      
+      return dbInstance;
     } catch (error) {
-      console.warn("ChefEmCasa: SQLite DB connection failed (recipes.sqlite missing or network error). App will work with local data.", error);
+      console.warn("ChefEmCasa: SQLite DB connection failed. App will work with local data.", error);
       return null;
     }
   })();
@@ -48,16 +80,64 @@ export async function initDb() {
   return initPromise;
 }
 
-function mapResultsToObjects<T>(result: any): T[] {
-  if (!result || result.length === 0) return [];
+function seedDatabase(db: any) {
+  const stmt = db.prepare(`
+    INSERT INTO recipes (
+      id, title, description, image, category, prepTime, cookTime, difficulty, 
+      ingredients, steps, authorId, authorName, createdAt, rating, ratingCount, status, comments
+    ) VALUES (
+      $id, $title, $description, $image, $category, $prepTime, $cookTime, $difficulty, 
+      $ingredients, $steps, $authorId, $authorName, $createdAt, $rating, $ratingCount, $status, $comments
+    )
+  `);
+
+  // Sample data to make the app look alive immediately
+  const seeds = [
+    {
+      $id: 'sql-1',
+      $title: 'Risoto de Cogumelos (Comunitário)',
+      $description: 'Um clássico italiano cremoso e cheio de sabor, vindo diretamente do banco de dados da comunidade.',
+      $image: 'https://images.unsplash.com/photo-1476124369491-e7addf5db371?q=80&w=1000&auto=format&fit=crop',
+      $category: 'Jantar',
+      $prepTime: 10,
+      $cookTime: 30,
+      $difficulty: 'Médio',
+      $ingredients: JSON.stringify([
+        { id: '1', name: 'Arroz arbóreo' },
+        { id: '2', name: 'Cogumelos frescos' },
+        { id: '3', name: 'Caldo de legumes' },
+        { id: '4', name: 'Vinho branco' }
+      ]),
+      $steps: JSON.stringify([
+        { id: '1', text: 'Refogue os cogumelos na manteiga.' },
+        { id: '2', text: 'Adicione o arroz e o vinho branco, mexendo sempre.' },
+        { id: '3', text: 'Vá colocando o caldo aos poucos até atingir o ponto.' }
+      ]),
+      $authorId: 'community-1',
+      $authorName: 'Chef Community',
+      $createdAt: Date.now(),
+      $rating: 4.9,
+      $ratingCount: 42,
+      $status: 'verified',
+      $comments: JSON.stringify([])
+    }
+  ];
+
+  seeds.forEach(s => stmt.run(s));
+  stmt.free();
+}
+
+function mapResultsToObjects<T>(result: { columns: string[], values: any[][] }): T[] {
+  if (!result || !result.values) return [];
   
-  const columns = result[0].columns;
-  const values = result[0].values;
+  const columns = result.columns;
+  const values = result.values;
   
   return values.map((row: any[]) => {
     const obj: any = {};
     columns.forEach((col: string, index: number) => {
       let val = row[index];
+      // Try to parse JSON strings if they look like arrays/objects
       if (typeof val === 'string' && (val.startsWith('[') || val.startsWith('{'))) {
         try {
           val = JSON.parse(val);
@@ -71,28 +151,37 @@ function mapResultsToObjects<T>(result: any): T[] {
 
 export const db = {
   getRecipes: async (): Promise<Recipe[]> => {
-    const worker = await initDb();
-    if (!worker) return [];
+    const database = await initDb();
+    if (!database) return [];
 
     try {
-      const result = await worker.db.query(`SELECT * FROM recipes ORDER BY createdAt DESC`);
-      return mapResultsToObjects<Recipe>(result);
+      // exec returns an array of result objects
+      const res = database.exec("SELECT * FROM recipes ORDER BY createdAt DESC");
+      if (res.length > 0) {
+        return mapResultsToObjects<Recipe>(res[0]);
+      }
+      return [];
     } catch (e) {
-      console.error("SQL Query Error:", e);
+      console.error("SQL Query Error (getRecipes):", e);
       return [];
     }
   },
 
   getRecipeById: async (id: string): Promise<Recipe | null> => {
-    const worker = await initDb();
-    if (!worker) return null;
+    const database = await initDb();
+    if (!database) return null;
 
     try {
-      const result = await worker.db.query(`SELECT * FROM recipes WHERE id = ?`, [id]);
-      const mapped = mapResultsToObjects<Recipe>(result);
-      return mapped.length > 0 ? mapped[0] : null;
+      // Use parameter binding for safety
+      const res = database.exec("SELECT * FROM recipes WHERE id = $id", { $id: id });
+      
+      if (res.length > 0) {
+        const mapped = mapResultsToObjects<Recipe>(res[0]);
+        return mapped.length > 0 ? mapped[0] : null;
+      }
+      return null;
     } catch (e) {
-      console.error("SQL Query Error:", e);
+      console.error("SQL Query Error (getRecipeById):", e);
       return null;
     }
   }
